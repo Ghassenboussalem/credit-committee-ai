@@ -2,6 +2,9 @@ import { CreditAnalysis } from '@/types/loan';
 import { cn } from '@/lib/utils';
 import { TrendingUp, TrendingDown, Minus, Sparkles, ArrowRight } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { IndustryAnalysisView } from './IndustryAnalysisView';
+import { TrajectoryView } from './TrajectoryView';
+import { BehavioralAnalysisView } from './BehavioralAnalysisView';
 
 interface CreditAnalysisViewProps {
   data: CreditAnalysis;
@@ -173,8 +176,29 @@ export function CreditAnalysisView({ data }: CreditAnalysisViewProps) {
         </div>
       )}
 
+      {/* Industry Analysis */}
+      {data.industryAnalysis && (
+        <div className="pt-4 border-t border-border">
+          <IndustryAnalysisView data={data.industryAnalysis} />
+        </div>
+      )}
+
+      {/* Credit Trajectory */}
+      {data.creditTrajectory && (
+        <div className="pt-4 border-t border-border">
+          <TrajectoryView data={data.creditTrajectory} />
+        </div>
+      )}
+
+      {/* Behavioral Analysis */}
+      {data.behavioralAnalysis && (
+        <div className="pt-4 border-t border-border">
+          <BehavioralAnalysisView data={data.behavioralAnalysis} />
+        </div>
+      )}
+
       {/* Credit Analysis Summary */}
-      <div>
+      <div className="pt-4 border-t border-border">
         <span className="data-label">Credit Analysis</span>
         <p className="text-sm text-muted-foreground mt-1">{data.creditHistory}</p>
       </div>
