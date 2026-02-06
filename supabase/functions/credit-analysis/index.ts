@@ -23,32 +23,76 @@ interface RiskStrategy {
   riskPremiumMultiplier: number;
 }
 
+interface FICOComponent {
+  score: number;
+  weight: number;
+  contribution: number;
+  description: string;
+  rating: 'excellent' | 'good' | 'fair' | 'poor';
+}
+
+interface FICOComponents {
+  paymentHistory: FICOComponent;
+  amountsOwed: FICOComponent;
+  lengthOfHistory: FICOComponent;
+  newCredit: FICOComponent;
+  creditMix: FICOComponent;
+}
+
+interface WhatIfScenario {
+  change: string;
+  newFICO: number;
+  delta: number;
+  impact: 'positive' | 'negative' | 'neutral';
+}
+
+interface PreCalculatedCreditData {
+  ficoComponents: FICOComponents;
+  preliminaryFICO: number;
+  whatIfScenarios: WhatIfScenario[];
+  componentAnalysis: string;
+}
+
 interface AnalysisRequest {
   agentType: 'credit' | 'risk' | 'compliance' | 'pricing' | 'chair';
   application: LoanApplication;
   strategy: RiskStrategy;
   previousAnalyses?: Record<string, unknown>;
+  preCalculatedData?: PreCalculatedCreditData;
 }
 
 const AGENT_PROMPTS: Record<string, string> = {
-  credit: `You are a Credit Analyst AI agent specializing in FICO scoring and credit history analysis.
+  credit: `You are a Senior Credit Analyst AI agent specializing in FICO scoring validation and credit history analysis.
 
-Analyze the loan application and provide a credit assessment. You must respond with ONLY valid JSON in this exact format:
+You have been provided with PRE-CALCULATED FICO component scores using industry-standard formulas. Your role is to:
+1. REVIEW the calculated component scores for reasonableness
+2. VALIDATE or ADJUST the preliminary FICO score (±20 points max) based on holistic assessment
+3. PROVIDE qualitative analysis that the math cannot capture
+4. EXPLAIN any adjustments you make
+
+The 5 FICO components (with standard weights):
+- Payment History (35%): Based on DTI ratio
+- Amounts Owed (30%): Debt relative to income
+- Length of History (15%): Employment years as stability proxy
+- New Credit (10%): Loan amount relative to income
+- Credit Mix (10%): Purpose-based scoring
+
+You must respond with ONLY valid JSON in this exact format:
 {
-  "ficoScore": <number between 300-850 based on the applicant's profile>,
-  "creditHistory": "<detailed assessment of credit history>",
+  "ficoScore": <final FICO between 300-850 - you may adjust ±20 from preliminary>,
+  "aiAdjustment": <number: how many points you adjusted from preliminary, positive or negative>,
+  "adjustmentReason": "<if you adjusted, explain why>",
+  "creditHistory": "<detailed qualitative assessment of credit profile>",
   "paymentHistory": "<Excellent|Good|Fair|Poor>",
   "creditUtilization": <percentage as number>,
-  "recommendation": "<your recommendation for next steps>"
+  "recommendation": "<your recommendation incorporating both quantitative and qualitative factors>"
 }
 
-Base your FICO score assessment on:
-- Debt-to-income ratio (existing debt vs annual income)
-- Employment stability (years employed)
-- Loan amount relative to income
-- Purpose of the loan
-
-Be realistic and analytical. Higher income, longer employment, and lower existing debt suggest better credit.`,
+IMPORTANT: 
+- Trust the pre-calculated scores as they use industry-standard formulas
+- Only adjust FICO if you see qualitative factors the math missed
+- Explain your reasoning for any adjustments
+- Consider soft factors: loan purpose + income combination, employment stability patterns, debt trajectory implications`,
 
   risk: `You are a Risk Modeler AI agent specializing in Probability of Default (PD) and Loss Given Default (LGD) calculations.
 
@@ -62,7 +106,7 @@ Analyze the loan application and previous credit analysis to provide risk metric
 }
 
 Consider:
-- The FICO score from credit analysis
+- The FICO score and component breakdown from credit analysis
 - Debt-to-income ratio
 - Loan amount relative to income
 - Employment stability
@@ -134,7 +178,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const { agentType, application, strategy, previousAnalyses } = await req.json() as AnalysisRequest;
+    const { agentType, application, strategy, previousAnalyses, preCalculatedData } = await req.json() as AnalysisRequest;
 
     if (!agentType || !application || !strategy) {
       throw new Error('Missing required fields: agentType, application, strategy');
@@ -162,6 +206,52 @@ Risk Strategy: ${strategy.name}
 - Maximum PD: ${(strategy.maxPD * 100).toFixed(1)}%
 - Risk Premium Multiplier: ${strategy.riskPremiumMultiplier}x`;
 
+    // Add pre-calculated FICO data for credit agent
+    if (agentType === 'credit' && preCalculatedData) {
+      userMessage += `
+
+=== PRE-CALCULATED FICO ANALYSIS ===
+Preliminary FICO Score: ${preCalculatedData.preliminaryFICO}
+
+COMPONENT BREAKDOWN:
+1. Payment History (35% weight):
+   - Score: ${preCalculatedData.ficoComponents.paymentHistory.score}/100
+   - Rating: ${preCalculatedData.ficoComponents.paymentHistory.rating}
+   - Contribution: ${preCalculatedData.ficoComponents.paymentHistory.contribution.toFixed(2)} points
+   - Analysis: ${preCalculatedData.ficoComponents.paymentHistory.description}
+
+2. Amounts Owed (30% weight):
+   - Score: ${preCalculatedData.ficoComponents.amountsOwed.score}/100
+   - Rating: ${preCalculatedData.ficoComponents.amountsOwed.rating}
+   - Contribution: ${preCalculatedData.ficoComponents.amountsOwed.contribution.toFixed(2)} points
+   - Analysis: ${preCalculatedData.ficoComponents.amountsOwed.description}
+
+3. Length of History (15% weight):
+   - Score: ${preCalculatedData.ficoComponents.lengthOfHistory.score}/100
+   - Rating: ${preCalculatedData.ficoComponents.lengthOfHistory.rating}
+   - Contribution: ${preCalculatedData.ficoComponents.lengthOfHistory.contribution.toFixed(2)} points
+   - Analysis: ${preCalculatedData.ficoComponents.lengthOfHistory.description}
+
+4. New Credit (10% weight):
+   - Score: ${preCalculatedData.ficoComponents.newCredit.score}/100
+   - Rating: ${preCalculatedData.ficoComponents.newCredit.rating}
+   - Contribution: ${preCalculatedData.ficoComponents.newCredit.contribution.toFixed(2)} points
+   - Analysis: ${preCalculatedData.ficoComponents.newCredit.description}
+
+5. Credit Mix (10% weight):
+   - Score: ${preCalculatedData.ficoComponents.creditMix.score}/100
+   - Rating: ${preCalculatedData.ficoComponents.creditMix.rating}
+   - Contribution: ${preCalculatedData.ficoComponents.creditMix.contribution.toFixed(2)} points
+   - Analysis: ${preCalculatedData.ficoComponents.creditMix.description}
+
+COMPONENT SUMMARY: ${preCalculatedData.componentAnalysis}
+
+WHAT-IF SCENARIOS (for reference):
+${preCalculatedData.whatIfScenarios.map(s => `- ${s.change}: FICO would be ${s.newFICO} (${s.delta > 0 ? '+' : ''}${s.delta})`).join('\n')}
+
+Please review these calculations and provide your assessment. You may adjust the final FICO by ±20 points if you identify qualitative factors the math missed.`;
+    }
+
     if (previousAnalyses && Object.keys(previousAnalyses).length > 0) {
       userMessage += `\n\nPrevious Analyses:\n${JSON.stringify(previousAnalyses, null, 2)}`;
     }
@@ -180,7 +270,7 @@ Risk Strategy: ${strategy.name}
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
         ],
-        temperature: 0.3, // Lower temperature for more consistent, analytical responses
+        temperature: 0.3,
       }),
     });
 
@@ -212,7 +302,6 @@ Risk Strategy: ${strategy.name}
     console.log(`[${agentType}] Raw AI response:`, content);
 
     // Parse the JSON response from the AI
-    // Handle potential markdown code blocks
     let jsonContent = content;
     if (content.includes('```json')) {
       jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
@@ -220,9 +309,26 @@ Risk Strategy: ${strategy.name}
       jsonContent = content.replace(/```\n?/g, '');
     }
 
-    const analysis = JSON.parse(jsonContent.trim());
+    const aiAnalysis = JSON.parse(jsonContent.trim());
 
-    console.log(`[${agentType}] Parsed analysis:`, analysis);
+    console.log(`[${agentType}] Parsed analysis:`, aiAnalysis);
+
+    // For credit agent, merge pre-calculated data with AI analysis
+    let analysis = aiAnalysis;
+    if (agentType === 'credit' && preCalculatedData) {
+      analysis = {
+        ficoScore: aiAnalysis.ficoScore,
+        ficoComponents: preCalculatedData.ficoComponents,
+        preliminaryFICO: preCalculatedData.preliminaryFICO,
+        aiAdjustment: aiAnalysis.aiAdjustment || (aiAnalysis.ficoScore - preCalculatedData.preliminaryFICO),
+        creditHistory: aiAnalysis.creditHistory,
+        paymentHistory: aiAnalysis.paymentHistory,
+        creditUtilization: aiAnalysis.creditUtilization,
+        recommendation: aiAnalysis.recommendation,
+        whatIfScenarios: preCalculatedData.whatIfScenarios,
+        componentAnalysis: preCalculatedData.componentAnalysis,
+      };
+    }
 
     return new Response(JSON.stringify({ analysis, agentType }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

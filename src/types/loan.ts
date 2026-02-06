@@ -13,12 +13,40 @@ export interface LoanApplication {
   createdAt: Date;
 }
 
+export interface FICOComponent {
+  score: number;
+  weight: number;
+  contribution: number;
+  description: string;
+  rating: 'excellent' | 'good' | 'fair' | 'poor';
+}
+
+export interface WhatIfScenario {
+  change: string;
+  newFICO: number;
+  delta: number;
+  impact: 'positive' | 'negative' | 'neutral';
+}
+
+export interface FICOComponents {
+  paymentHistory: FICOComponent;
+  amountsOwed: FICOComponent;
+  lengthOfHistory: FICOComponent;
+  newCredit: FICOComponent;
+  creditMix: FICOComponent;
+}
+
 export interface CreditAnalysis {
   ficoScore: number;
+  ficoComponents: FICOComponents;
+  preliminaryFICO: number;
+  aiAdjustment: number;
   creditHistory: string;
   paymentHistory: string;
   creditUtilization: number;
   recommendation: string;
+  whatIfScenarios: WhatIfScenario[];
+  componentAnalysis: string;
 }
 
 export interface RiskAnalysis {

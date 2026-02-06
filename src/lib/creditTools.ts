@@ -8,6 +8,12 @@ import {
   RiskStrategy,
 } from '@/types/loan';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  calculateFICOComponents,
+  calculatePreliminaryFICO,
+  generateWhatIfScenarios,
+  getComponentAnalysisSummary,
+} from './ficoCalculations';
 
 interface AnalysisResponse<T> {
   analysis: T;
@@ -18,7 +24,8 @@ async function callCreditAnalysisAgent<T>(
   agentType: string,
   application: LoanApplication,
   strategy: RiskStrategy,
-  previousAnalyses?: Record<string, unknown>
+  previousAnalyses?: Record<string, unknown>,
+  preCalculatedData?: Record<string, unknown>
 ): Promise<T> {
   const { data, error } = await supabase.functions.invoke<AnalysisResponse<T>>('credit-analysis', {
     body: {
@@ -26,6 +33,7 @@ async function callCreditAnalysisAgent<T>(
       application,
       strategy,
       previousAnalyses,
+      preCalculatedData,
     },
   });
 
@@ -41,12 +49,32 @@ async function callCreditAnalysisAgent<T>(
   return data.analysis;
 }
 
-// FICO Scoring Tool - Real AI
+// FICO Scoring Tool - Real AI with Pre-Calculations
 export async function calculateFICOScore(
   application: LoanApplication,
   strategy: RiskStrategy
 ): Promise<CreditAnalysis> {
-  return callCreditAnalysisAgent<CreditAnalysis>('credit', application, strategy);
+  // Phase 1: Pre-calculate all FICO components
+  const ficoComponents = calculateFICOComponents(application);
+  
+  // Phase 2: Calculate preliminary FICO
+  const preliminaryFICO = calculatePreliminaryFICO(ficoComponents);
+  
+  // Phase 3: Generate what-if scenarios
+  const whatIfScenarios = generateWhatIfScenarios(application, preliminaryFICO);
+  
+  // Phase 4: Get component analysis summary
+  const componentAnalysis = getComponentAnalysisSummary(ficoComponents);
+  
+  // Phase 5: Send to AI for validation and qualitative assessment
+  const preCalculatedData = {
+    ficoComponents,
+    preliminaryFICO,
+    whatIfScenarios,
+    componentAnalysis,
+  };
+  
+  return callCreditAnalysisAgent<CreditAnalysis>('credit', application, strategy, undefined, preCalculatedData);
 }
 
 // PD/LGD Modeling Tool - Real AI
