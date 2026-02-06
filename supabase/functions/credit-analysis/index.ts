@@ -13,6 +13,7 @@ interface LoanApplication {
   annualIncome: number;
   employmentYears: number;
   existingDebt: number;
+  industry: string;
 }
 
 interface RiskStrategy {
@@ -46,11 +47,54 @@ interface WhatIfScenario {
   impact: 'positive' | 'negative' | 'neutral';
 }
 
+interface IndustryAnalysis {
+  industry: string;
+  riskCoefficient: number;
+  stability: string;
+  layoffRisk: string;
+  adjustedFICO: number;
+  industryPercentile: number;
+  benchmarkComparison: string;
+}
+
+interface TrajectoryPrediction {
+  months: number;
+  projectedFICO: number;
+  confidenceLow: number;
+  confidenceHigh: number;
+  trend: 'improving' | 'stable' | 'declining';
+}
+
+interface CreditTrajectory {
+  debtVelocity: number;
+  incomeDebtRatio: number;
+  trajectoryTrend: 'improving' | 'stable' | 'declining';
+  predictions: TrajectoryPrediction[];
+  riskAssessment: string;
+}
+
+interface BehavioralRedFlag {
+  flag: string;
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  detected: boolean;
+}
+
+interface BehavioralAnalysis {
+  redFlags: BehavioralRedFlag[];
+  psychologicalRiskScore: number;
+  overallAssessment: string;
+  flagCount: { low: number; medium: number; high: number };
+}
+
 interface PreCalculatedCreditData {
   ficoComponents: FICOComponents;
   preliminaryFICO: number;
   whatIfScenarios: WhatIfScenario[];
   componentAnalysis: string;
+  industryAnalysis: IndustryAnalysis;
+  creditTrajectory: CreditTrajectory;
+  behavioralAnalysis: BehavioralAnalysis;
 }
 
 interface AnalysisRequest {
@@ -62,37 +106,37 @@ interface AnalysisRequest {
 }
 
 const AGENT_PROMPTS: Record<string, string> = {
-  credit: `You are a Senior Credit Analyst AI agent specializing in FICO scoring validation and credit history analysis.
+  credit: `You are a Senior Credit Analyst AI agent specializing in FICO scoring validation, industry risk analysis, credit trajectory prediction, and behavioral pattern detection.
 
-You have been provided with PRE-CALCULATED FICO component scores using industry-standard formulas. Your role is to:
-1. REVIEW the calculated component scores for reasonableness
+You have been provided with:
+1. PRE-CALCULATED FICO component scores using industry-standard formulas
+2. INDUSTRY RISK ANALYSIS with risk coefficients and benchmarks
+3. CREDIT TRAJECTORY PREDICTION showing 12/24/36 month projections
+4. BEHAVIORAL RED FLAG DETECTION for financial stress signals
+
+Your role is to:
+1. REVIEW all pre-calculated data for reasonableness
 2. VALIDATE or ADJUST the preliminary FICO score (±20 points max) based on holistic assessment
-3. PROVIDE qualitative analysis that the math cannot capture
-4. EXPLAIN any adjustments you make
-
-The 5 FICO components (with standard weights):
-- Payment History (35%): Based on DTI ratio
-- Amounts Owed (30%): Debt relative to income
-- Length of History (15%): Employment years as stability proxy
-- New Credit (10%): Loan amount relative to income
-- Credit Mix (10%): Purpose-based scoring
+3. SYNTHESIZE insights from industry analysis, trajectory prediction, and behavioral flags
+4. PROVIDE a comprehensive recommendation incorporating ALL analytical dimensions
 
 You must respond with ONLY valid JSON in this exact format:
 {
   "ficoScore": <final FICO between 300-850 - you may adjust ±20 from preliminary>,
   "aiAdjustment": <number: how many points you adjusted from preliminary, positive or negative>,
-  "adjustmentReason": "<if you adjusted, explain why>",
-  "creditHistory": "<detailed qualitative assessment of credit profile>",
+  "adjustmentReason": "<if you adjusted, explain why including industry/trajectory/behavioral factors>",
+  "creditHistory": "<comprehensive assessment incorporating industry context and trajectory analysis>",
   "paymentHistory": "<Excellent|Good|Fair|Poor>",
   "creditUtilization": <percentage as number>,
-  "recommendation": "<your recommendation incorporating both quantitative and qualitative factors>"
+  "recommendation": "<detailed recommendation incorporating FICO, industry risk, trajectory, and behavioral analysis>"
 }
 
 IMPORTANT: 
 - Trust the pre-calculated scores as they use industry-standard formulas
-- Only adjust FICO if you see qualitative factors the math missed
-- Explain your reasoning for any adjustments
-- Consider soft factors: loan purpose + income combination, employment stability patterns, debt trajectory implications`,
+- Consider industry risk coefficients when assessing overall creditworthiness
+- Factor in credit trajectory trends - declining trends warrant score adjustments
+- Behavioral red flags should influence your recommendation, especially high-severity flags
+- Provide a holistic assessment that synthesizes all analytical dimensions`,
 
   risk: `You are a Risk Modeler AI agent specializing in Probability of Default (PD) and Loss Given Default (LGD) calculations.
 
@@ -196,6 +240,7 @@ Application ID: ${application.id}
 Applicant: ${application.applicantName}
 Requested Amount: $${application.requestedAmount.toLocaleString()}
 Purpose: ${application.purpose}
+Industry: ${application.industry}
 Annual Income: $${application.annualIncome.toLocaleString()}
 Years Employed: ${application.employmentYears}
 Existing Debt: $${application.existingDebt.toLocaleString()}
@@ -246,10 +291,44 @@ COMPONENT BREAKDOWN:
 
 COMPONENT SUMMARY: ${preCalculatedData.componentAnalysis}
 
-WHAT-IF SCENARIOS (for reference):
+WHAT-IF SCENARIOS:
 ${preCalculatedData.whatIfScenarios.map(s => `- ${s.change}: FICO would be ${s.newFICO} (${s.delta > 0 ? '+' : ''}${s.delta})`).join('\n')}
 
-Please review these calculations and provide your assessment. You may adjust the final FICO by ±20 points if you identify qualitative factors the math missed.`;
+=== INDUSTRY RISK ANALYSIS ===
+Industry: ${preCalculatedData.industryAnalysis.industry}
+Risk Coefficient: ${preCalculatedData.industryAnalysis.riskCoefficient}x
+Stability Rating: ${preCalculatedData.industryAnalysis.stability}
+Layoff Risk: ${preCalculatedData.industryAnalysis.layoffRisk}
+Industry-Adjusted FICO: ${preCalculatedData.industryAnalysis.adjustedFICO}
+Industry Percentile: ${preCalculatedData.industryAnalysis.industryPercentile}th percentile
+Benchmark Comparison: ${preCalculatedData.industryAnalysis.benchmarkComparison}
+
+=== CREDIT TRAJECTORY PREDICTION ===
+Debt Velocity: $${preCalculatedData.creditTrajectory.debtVelocity.toLocaleString()}/year
+Income-to-Debt Ratio: ${preCalculatedData.creditTrajectory.incomeDebtRatio.toFixed(2)}x
+Trajectory Trend: ${preCalculatedData.creditTrajectory.trajectoryTrend.toUpperCase()}
+
+Projections:
+${preCalculatedData.creditTrajectory.predictions.map(p => 
+  `- ${p.months} months: FICO ${p.projectedFICO} (${p.confidenceLow}-${p.confidenceHigh} confidence interval)`
+).join('\n')}
+
+Risk Assessment: ${preCalculatedData.creditTrajectory.riskAssessment}
+
+=== BEHAVIORAL RED FLAG ANALYSIS ===
+Psychological Risk Score: ${preCalculatedData.behavioralAnalysis.psychologicalRiskScore}/100
+High-Severity Flags: ${preCalculatedData.behavioralAnalysis.flagCount.high}
+Medium-Severity Flags: ${preCalculatedData.behavioralAnalysis.flagCount.medium}
+Low-Severity Flags: ${preCalculatedData.behavioralAnalysis.flagCount.low}
+
+Detected Flags:
+${preCalculatedData.behavioralAnalysis.redFlags.filter(f => f.detected).map(f => 
+  `- [${f.severity.toUpperCase()}] ${f.flag}: ${f.description}`
+).join('\n') || '- No concerning flags detected'}
+
+Overall Assessment: ${preCalculatedData.behavioralAnalysis.overallAssessment}
+
+Please review all pre-calculated analyses and provide your comprehensive assessment. You may adjust the final FICO by ±20 points based on your holistic evaluation.`;
     }
 
     if (previousAnalyses && Object.keys(previousAnalyses).length > 0) {
@@ -327,6 +406,9 @@ Please review these calculations and provide your assessment. You may adjust the
         recommendation: aiAnalysis.recommendation,
         whatIfScenarios: preCalculatedData.whatIfScenarios,
         componentAnalysis: preCalculatedData.componentAnalysis,
+        industryAnalysis: preCalculatedData.industryAnalysis,
+        creditTrajectory: preCalculatedData.creditTrajectory,
+        behavioralAnalysis: preCalculatedData.behavioralAnalysis,
       };
     }
 

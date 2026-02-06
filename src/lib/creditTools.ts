@@ -14,6 +14,9 @@ import {
   generateWhatIfScenarios,
   getComponentAnalysisSummary,
 } from './ficoCalculations';
+import { calculateIndustryAnalysis } from './industryAnalysis';
+import { calculateCreditTrajectory } from './trajectoryPrediction';
+import { performBehavioralAnalysis } from './behavioralAnalysis';
 
 interface AnalysisResponse<T> {
   analysis: T;
@@ -66,12 +69,24 @@ export async function calculateFICOScore(
   // Phase 4: Get component analysis summary
   const componentAnalysis = getComponentAnalysisSummary(ficoComponents);
   
-  // Phase 5: Send to AI for validation and qualitative assessment
+  // Phase 5: Industry analysis
+  const industryAnalysis = calculateIndustryAnalysis(application, preliminaryFICO);
+  
+  // Phase 6: Credit trajectory prediction
+  const creditTrajectory = calculateCreditTrajectory(application, preliminaryFICO, ficoComponents);
+  
+  // Phase 7: Behavioral red flag detection
+  const behavioralAnalysis = performBehavioralAnalysis(application);
+  
+  // Phase 8: Send to AI for validation and qualitative assessment
   const preCalculatedData = {
     ficoComponents,
     preliminaryFICO,
     whatIfScenarios,
     componentAnalysis,
+    industryAnalysis,
+    creditTrajectory,
+    behavioralAnalysis,
   };
   
   return callCreditAnalysisAgent<CreditAnalysis>('credit', application, strategy, undefined, preCalculatedData);

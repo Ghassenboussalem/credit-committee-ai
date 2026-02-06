@@ -28,6 +28,25 @@ const loanPurposes = [
   'Other',
 ];
 
+const industries = [
+  'Technology',
+  'Healthcare',
+  'Government',
+  'Education',
+  'Finance',
+  'Retail',
+  'Manufacturing',
+  'Construction',
+  'Hospitality',
+  'Transportation',
+  'Energy',
+  'Real Estate',
+  'Legal',
+  'Consulting',
+  'Non-Profit',
+  'Other',
+];
+
 export function LoanApplicationForm({ onSubmit, isProcessing }: LoanApplicationFormProps) {
   const [formData, setFormData] = useState({
     applicantName: '',
@@ -36,6 +55,7 @@ export function LoanApplicationForm({ onSubmit, isProcessing }: LoanApplicationF
     annualIncome: '',
     employmentYears: '',
     existingDebt: '',
+    industry: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -49,6 +69,7 @@ export function LoanApplicationForm({ onSubmit, isProcessing }: LoanApplicationF
       annualIncome: parseFloat(formData.annualIncome) || 0,
       employmentYears: parseFloat(formData.employmentYears) || 0,
       existingDebt: parseFloat(formData.existingDebt) || 0,
+      industry: formData.industry,
       createdAt: new Date(),
     };
     
@@ -64,7 +85,8 @@ export function LoanApplicationForm({ onSubmit, isProcessing }: LoanApplicationF
     formData.requestedAmount &&
     formData.purpose &&
     formData.annualIncome &&
-    formData.employmentYears;
+    formData.employmentYears &&
+    formData.industry;
 
   return (
     <form onSubmit={handleSubmit} className="glass-card p-6 space-y-5">
@@ -116,6 +138,25 @@ export function LoanApplicationForm({ onSubmit, isProcessing }: LoanApplicationF
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="industry">Industry</Label>
+          <Select
+            value={formData.industry}
+            onValueChange={(value) => updateField('industry', value)}
+          >
+            <SelectTrigger className="bg-secondary/50 border-border">
+              <SelectValue placeholder="Select industry" />
+            </SelectTrigger>
+            <SelectContent>
+              {industries.map(industry => (
+                <SelectItem key={industry} value={industry}>
+                  {industry}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
