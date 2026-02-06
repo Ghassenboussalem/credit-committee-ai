@@ -15,46 +15,10 @@ import {
   TrendingDown,
   Minus
 } from 'lucide-react';
+import { CreditAnalysisView } from './analysis/CreditAnalysisView';
 
 interface AnalysisPanelProps {
   agents: AgentState[];
-}
-
-function CreditAnalysisView({ data }: { data: CreditAnalysis }) {
-  const getFicoColor = (score: number) => {
-    if (score >= 740) return 'text-status-approved';
-    if (score >= 670) return 'text-agent-risk';
-    return 'text-status-rejected';
-  };
-
-  return (
-    <div className="space-y-4 slide-in">
-      <div className="flex items-center justify-between">
-        <span className="data-label">FICO Score</span>
-        <span className={cn('data-value', getFicoColor(data.ficoScore))}>
-          {data.ficoScore}
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <span className="data-label">Payment History</span>
-          <p className="text-sm font-medium mt-1">{data.paymentHistory}</p>
-        </div>
-        <div>
-          <span className="data-label">Credit Utilization</span>
-          <p className="text-sm font-medium mt-1">{data.creditUtilization}%</p>
-        </div>
-      </div>
-      <div>
-        <span className="data-label">Analysis</span>
-        <p className="text-sm text-muted-foreground mt-1">{data.creditHistory}</p>
-      </div>
-      <div className="pt-2 border-t border-border">
-        <span className="data-label">Recommendation</span>
-        <p className="text-sm mt-1 text-agent-credit">{data.recommendation}</p>
-      </div>
-    </div>
-  );
 }
 
 function RiskAnalysisView({ data }: { data: RiskAnalysis }) {
